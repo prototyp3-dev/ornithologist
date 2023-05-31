@@ -1,0 +1,184 @@
+diff --git a/src/constants/chain.ts b/src/constants/chain.ts
+index e54bb0d..93da54c 100644
+--- a/src/constants/chain.ts
++++ b/src/constants/chain.ts
+@@ -71,5 +71,15 @@ export const defaultNetworks: NetworkObject[] = [
+     explorerName: 'AVAXScan',
+     nativeCoin: 'AVAX',
+     type: 'mainnet'
++  },
++  {
++    name: 'Localhost',
++    chainId: 31337,
++    rpcUrl: 'http://localhost:8545',
++    logoUrl: '',
++    explorerUrl: '',
++    explorerName: 'AVAXScan',
++    nativeCoin: 'Dummy ETH',
++    type: 'testnet'
+   }
+ ];
+diff --git a/src/store/god.ts b/src/store/god.ts
+index 6d71a67..28e84fc 100644
+--- a/src/store/god.ts
++++ b/src/store/god.ts
+@@ -4,7 +4,7 @@ import { connectorsForWallets } from '@rainbow-me/rainbowkit';
+ import { metaMaskWallet, walletConnectWallet } from '@rainbow-me/rainbowkit/wallets';
+ import { makeAutoObservable } from 'mobx';
+ import { configureChains, createClient } from 'wagmi';
+-import { Chain, mainnet, polygon, avalanche, iotex, bsc } from 'wagmi/chains';
++import { Chain, mainnet, polygon, avalanche, iotex, bsc, iotexTestnet } from 'wagmi/chains';
+ import { publicProvider } from 'wagmi/providers/public';
+ import { ChainState } from './network/ChainState';
+ import { CoinState } from './network/CoinState';
+@@ -12,6 +12,21 @@ import { EthNetworkState } from './network/EthNetworkState';
+ import { BooleanState } from './standard/base';
+ import { MappingState } from './standard/MappingState';
+ 
++export const localhostChain = {
++  id: 31_337,
++  name: 'Localhost',
++  network: 'localhost',
++  nativeCurrency: {
++    decimals: 18,
++    name: 'Localhost',
++    symbol: 'HardhatETH',
++  },
++  rpcUrls: {
++    public: { http: ['http://hardhat:8545'] },
++    default: { http: ['http://hardhat:8545'] },
++  },
++}
++
+ export class GodStore {
+   eth: EthNetworkState;
+   wagmiClient: any = null;
+@@ -87,10 +102,15 @@ export class GodStore {
+         ...iotex,
+         iconUrl: 'https://coingecko-proxy.iopay.me/coins/images/3334/large/iotex-logo.png?1547037941'
+       },
++      {
++        ...iotexTestnet,
++        iconUrl: 'https://coingecko-proxy.iopay.me/coins/images/3334/large/iotex-logo.png?1547037941'
++      },
+       mainnet,
+       polygon,
+       bsc,
+       avalanche,
++      localhostChain
+     ];
+     const connectors = connectorsForWallets([
+       {
+diff --git a/src/store/lib/w3bstream/schema/chainHeight.ts b/src/store/lib/w3bstream/schema/chainHeight.ts
+index ba5f621..0753f19 100644
+--- a/src/store/lib/w3bstream/schema/chainHeight.ts
++++ b/src/store/lib/w3bstream/schema/chainHeight.ts
+@@ -131,7 +131,7 @@ export default class ChainHeightModule {
+       default: {
+         projectName: '',
+         eventType: 'DEFAULT',
+-        chainID: 4690,
++        chainID: 31337,
+         height: 0
+       }
+     })
+diff --git a/src/store/lib/w3bstream/schema/chainTx.ts b/src/store/lib/w3bstream/schema/chainTx.ts
+index 9e1e8a1..1174a6e 100644
+--- a/src/store/lib/w3bstream/schema/chainTx.ts
++++ b/src/store/lib/w3bstream/schema/chainTx.ts
+@@ -139,7 +139,7 @@ export default class ChainTxModule {
+       default: {
+         projectName: '',
+         eventType: 'DEFAULT',
+-        chainID: 4690,
++        chainID: 31337,
+         txAddress: ''
+       }
+     })
+diff --git a/src/store/lib/w3bstream/schema/contractLog.ts b/src/store/lib/w3bstream/schema/contractLog.ts
+index 9a435b8..88787ab 100644
+--- a/src/store/lib/w3bstream/schema/contractLog.ts
++++ b/src/store/lib/w3bstream/schema/contractLog.ts
+@@ -15,16 +15,13 @@ export const schema = {
+   definitions: {
+     projects: {
+       type: 'string'
+-    },
+-    blockChains: {
+-      type: 'string'
+     }
+   },
+   type: 'object',
+   properties: {
+     projectName: { $ref: '#/definitions/projects', title: 'Project Name', description: ''  },
+     eventType: { type: 'string', title: 'W3bstream Event Name', description: 'Choose a unique name for the W3bstream event that should be Triggered'  },
+-    chainID: { $ref: '#/definitions/blockChains', type: 'string', title: 'Chain ID', default: '4690', description: 'Input the chain id where the smart contract is deployed'  },
++    chainID: { type: 'number', title: 'Chain ID' ,description: 'Input the chain id where the smart contract is deployed'  },
+     contractAddress: { type: 'string', title: 'Contract Address', description: 'The address of the smart contract to be monitored'  },
+     blockStart: { type: 'number', title: 'Start Height', description: 'The initial height from which the smart contract should be monitored.'  },
+     blockEnd: { type: 'number', title: 'End Height', description: 'The final height at which the monitoring should cease. Input "0" for "never"'  },
+@@ -38,8 +35,7 @@ type SchemaType = FromSchema<typeof schema>;
+ 
+ //@ts-ignore
+ schema.definitions = {
+-  projects: definitions.projectName,
+-  blockChains: definitions.blockChains
++  projects: definitions.projectName
+ };
+ 
+ export default class ContractLogModule {
+@@ -144,9 +140,6 @@ export default class ContractLogModule {
+         norender: false,
+         submitText: 'Submit'
+       },
+-      chainID: {
+-        'ui:widget': 'select'
+-      },
+       event: {
+         'ui:placeholder': 'Transfer(address, address, uint256,...)'
+       },
+@@ -162,10 +155,10 @@ export default class ContractLogModule {
+       default: {
+         projectName: '',
+         eventType: 'DEFAULT',
+-        chainID: '4690',
++        chainID: 31337,
+         contractAddress: '',
+-        blockStart: 16737070,
+-        blockEnd: 16740080,
++        blockStart: 0,
++        blockEnd: 0,
+         event: '',
+         topic0: ''
+       },
+diff --git a/src/store/lib/w3bstream/schema/postman.ts b/src/store/lib/w3bstream/schema/postman.ts
+index 9275850..66adbc4 100644
+--- a/src/store/lib/w3bstream/schema/postman.ts
++++ b/src/store/lib/w3bstream/schema/postman.ts
+@@ -268,7 +268,7 @@ const TEMPLATES: TEMPLATES_TYPE = {
+       body: JSON.stringify(
+         {
+           eventType: 'DEFAULT',
+-          chainID: 4690,
++          chainID: 31337,
+           contractAddress: '${contractAddress}',
+           blockStart: '${blockStart}',
+           blockEnd: '${blockEnd}',
+@@ -303,7 +303,7 @@ const TEMPLATES: TEMPLATES_TYPE = {
+       body: JSON.stringify(
+         {
+           eventType: 'DEFAULT',
+-          chainID: 4690,
++          chainID: 31337,
+           txAddress: '${txAddress}'
+         },
+         null,
+@@ -335,7 +335,7 @@ const TEMPLATES: TEMPLATES_TYPE = {
+       body: JSON.stringify(
+         {
+           eventType: 'DEFAULT',
+-          chainID: 4690,
++          chainID: 31337,
+           height: '${height}'
+         },
+         null,
