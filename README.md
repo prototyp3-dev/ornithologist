@@ -1,7 +1,7 @@
 # Ornithologist DApp
 
 ```
-This works for Cartesi Rollups version 0.8.x
+Cartesi Rollups version: 0.8.x
 ```
 
 The ornithologist DApp is an integration between IoT devices and a Cartesi DApp. The idea is that users will do birdwatches as amateurs ornithologists, and will encounter birds which will be minted as Non fungible tokens. The birds will be as rare as their extinction risk, and longer and further the birdwalks more probability to encounter a rarer bird. 
